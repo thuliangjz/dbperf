@@ -1,0 +1,21 @@
+SQL_DIR=/home/liangjz/Programming/database/hsqldb/sql/
+URL=jdbc:hsqldb:hsql://localhost/dbperf
+USR=SA
+PASS=
+if [ "$1" == "create" ]; then
+    javac -sourcepath "src/" -d "classes" src/dbperf/TableCreate.java
+elif [ "$1" == "run" ]; then
+    java -cp "classes/" dbperf.TableCreate "$SQL_DIR""drop_table.sql" "$URL" "$USR" "$PASS"
+    echo "drop finished"
+
+    java -cp "classes/" dbperf.TableCreate "$SQL_DIR""create_table.sql" "$URL" "$USR" "$PASS"
+    echo "table creation finished"
+
+    java -cp "classes/" dbperf.TableCreate "$SQL_DIR""add_key.sql" "$URL" "$USR" "$PASS"
+    echo "table alter finished"
+
+    java -cp "classes/" dbperf.TableCreate "$SQL_DIR""data.sql" "$URL" "$USR" "$PASS"
+    echo "data insertion finished"
+else
+    echo "not understand"
+fi

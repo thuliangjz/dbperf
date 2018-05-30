@@ -1,0 +1,8 @@
+bin/
+tmp/
+classes/
+doc/
+doc-src/
+lib/*.jar
+db*/
+make.sh
