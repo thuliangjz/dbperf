@@ -32,7 +32,7 @@ public class TableCreate {
             while((line = bufferReader.readLine()) != null){
                 stmt.executeUpdate(line);
                 ++statementCount;
-                if(statementCount % 1000 == 0){
+                if(statementCount % 10000 == 0){
                     System.out.println(String.format("%d statements executed", statementCount));
                 }
             }
