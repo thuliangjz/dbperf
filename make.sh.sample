@@ -4,6 +4,7 @@ USR=SA
 PASS=
 if [ "$1" == "create" ]; then
     javac -sourcepath "src/" -d "classes" src/dbperf/TableCreate.java
+    javac -sourcepath "src/" -d "classes" src/dbperf/QueryTest.java
 elif [ "$1" == "run" ]; then
     java -cp "classes/" dbperf.TableCreate "$SQL_DIR""drop_table.sql" "$URL" "$USR" "$PASS"
     echo "drop finished"
@@ -16,6 +17,10 @@ elif [ "$1" == "run" ]; then
 
     java -cp "classes/" dbperf.TableCreate "$SQL_DIR""data.sql" "$URL" "$USR" "$PASS"
     echo "data insertion finished"
+elif [ "$1" == "query" ]; then
+    sql=`cat query.sql`
+    java -cp "classes/" dbperf.QueryTest "$URL" "$USR" "$PASS" "$sql"
+    sql=""
 else
     echo "not understand"
 fi
