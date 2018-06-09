@@ -1107,6 +1107,11 @@ public class RangeVariable {
         Session         session;
         int             rangePosition;
         RowIterator     it = emptyIterator;
+        //modified by Liangjz，used to accelerate certain select
+        RowIterator		itLast = emptyIterator;
+        boolean			itLastInited = false;
+        boolean			itLastUsed = false;
+        
         PersistentStore store;
         boolean         isBeforeFirst;
         RangeVariable   rangeVar;
@@ -1326,7 +1331,9 @@ public class RangeVariable {
             }
 
             int opType = conditions[condIndex].opType;
-
+            //modified by Liangjz，used to accelerate certain select
+            int useLastItFlag = 0;
+            
             for (int i = 0; i < conditions[condIndex].indexedColumnCount;
                     i++) {
                 int range    = 0;
@@ -1412,12 +1419,19 @@ public class RangeVariable {
                 }
 
                 currentJoinData[i] = value;
+                if(value != null)
+                	++useLastItFlag;
             }
-
+            if(useLastItFlag == conditions[condIndex].indexedColumnCount && itLastInited){
+            	it = itLast;
+            	itLastUsed = true;
+            	return;
+            }
             it = conditions[condIndex].rangeIndex.findFirstRow(session, store,
                     currentJoinData, conditions[condIndex].indexedColumnCount,
                     rangeVar.indexDistinctCount, opType,
                     conditions[condIndex].reversed, null);
+            itLastUsed = false;
         }
 
         /**
@@ -1437,13 +1451,16 @@ public class RangeVariable {
                 if (session.abortAction) {
                     throw Error.error(ErrorCode.X_40502);
                 }
-
-                if (it.next()) {}
-                else {
-                    it = emptyIterator;
-
-                    break;
+                if(!itLastUsed) {
+	                if (it.next()) {}
+	                else {
+	                    it = emptyIterator;
+	
+	                    break;
+	                }
                 }
+                else
+                	itLastUsed = false;
 
                 if (conditions[condIndex].terminalCondition != null) {
                     if (!conditions[condIndex].terminalCondition.testCondition(
@@ -1493,7 +1510,12 @@ public class RangeVariable {
 
                 return true;
             }
+            
+            //modified by Liangjz，used to accelerate certain select
+            itLast = it;
+            itLastInited = true;
 
+            
             it.release();
 
             it = emptyIterator;
