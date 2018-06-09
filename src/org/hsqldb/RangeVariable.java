@@ -1442,7 +1442,7 @@ public class RangeVariable {
         private boolean findNext() {
 
             boolean result = false;
-
+            boolean noItNext = false;
             while (true) {
                 if (session.abortTransaction) {
                     throw Error.error(ErrorCode.X_40000);
@@ -1455,7 +1455,9 @@ public class RangeVariable {
 	                if (it.next()) {}
 	                else {
 	                    it = emptyIterator;
-	
+	                    noItNext = true;
+	                    itLast = emptyIterator;
+	                    itLastUsed = false;
 	                    break;
 	                }
                 }
@@ -1512,8 +1514,10 @@ public class RangeVariable {
             }
             
             //modified by Liangjz，used to accelerate certain select
-            itLast = it;
-            itLastInited = true;
+            if(!noItNext) {
+            	itLast = it;
+            	itLastInited = true;
+            }
 
             
             it.release();
