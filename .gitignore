@@ -4,5 +4,5 @@ classes/
 doc/
 doc-src/
 lib/*.jar
-db*/
+db0/
 make.sh
