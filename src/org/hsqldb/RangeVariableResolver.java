@@ -158,7 +158,7 @@ public class RangeVariableResolver {
             reorder = false;
         }
         decomposeAndConditions(session, conditions, queryConditions);
-        prereorder();
+        //prereorder();
         HashMap tmp = new HashMap();
         for(int i = 0; i < rangeVariables.length; ++i) {
         	tmp.put(rangeVariables[i], i);
