@@ -93,6 +93,9 @@ public class RangeVariableResolver {
     OrderedHashSet        tempSet          = new OrderedHashSet();
     HashMap               tempMap          = new HashMap();
     MultiValueHashMap     tempMultiMap     = new MultiValueHashMap();
+    
+    //Prereorder rangeVariables
+    int[]	singleTblCondCnt;
 
     RangeVariableResolver(Session session, QuerySpecification select) {
 
@@ -151,13 +154,24 @@ public class RangeVariableResolver {
     }
 
     void processConditions() {
-
         if (session.sessionOptimization < 8) {
             reorder = false;
         }
-
         decomposeAndConditions(session, conditions, queryConditions);
-
+        prereorder();
+        HashMap tmp = new HashMap();
+        for(int i = 0; i < rangeVariables.length; ++i) {
+        	tmp.put(rangeVariables[i], i);
+        	if(i == 1) {
+        		tmp.put(rangeVariables[i], i + 1);
+        	}
+        }
+        int codeTmp = 0;
+        int[] lst = {1,2};
+        for(int i = 0; i < rangeVariables.length; ++i) {
+        	codeTmp += (int)tmp.get(rangeVariables[i]);
+        }
+        
         for (int i = 0; i < rangeVariables.length; i++) {
             rangeVarSet.add(rangeVariables[i]);
 
@@ -694,7 +708,6 @@ public class RangeVariableResolver {
                 break;
             }
         }
-
         if (position < 0) {
             return;
         }
@@ -1563,5 +1576,86 @@ public class RangeVariableResolver {
             return table.getRowStore(session).searchCost(session, index,
                                      count, opType);
         }
+    }
+    //递归地判断一个表达式是否只与一个rangeVariable相关
+    private RangeVariable relatedSingleTableRec(Expression e) throws Exception {
+    	if(e.opType == OpTypes.COLUMN)
+    		return e.getRangeVariable();
+    	Expression[] nodes = new Expression[2];
+    	nodes[0] = e.getLeftNode();
+    	nodes[1] = e.getRightNode();
+    	RangeVariable result = null;
+    	for(int i = 0; i < nodes.length; ++i) {
+    		if(nodes[i] == null)
+    			continue;
+    		RangeVariable tmp = this.relatedSingleTableRec(nodes[i]);
+    		if(result == null)
+    			result = tmp;
+    		else if(tmp != null) {
+    			if(tmp != result) {
+    				throw new Exception("different rangeVariables found");
+    			}
+    		}
+    	}
+    	return result;
+    }
+    public RangeVariable RelatedSingleTable(Expression e) {
+    	RangeVariable res;
+    	try {
+    		res = relatedSingleTableRec(e);
+    	}
+    	catch(Exception exception) {
+    		res = null;
+    	}
+    	return res;
+    }
+    //对TPC_H第12条语句查询顺序的优化
+    private void prereorder() {
+    	if(this.rangeVariables.length != 2) 
+    		return;
+    	boolean mergeJoined = false;
+    	for(int i = 0; i < this.queryConditions.size(); ++i) {
+    		mergeJoined = this.isIndexEqualExpression((Expression)queryConditions.get(i));
+    		if(mergeJoined)
+    			break;
+    	}
+    	if(!mergeJoined)
+    		return;
+    	OrderedHashSet rangeSet = new OrderedHashSet();
+    	rangeSet.add(rangeVariables[0]); rangeSet.add(rangeVariables[1]);
+    	int[] counts = {0, 0};
+    	for(int i = 0; i < queryConditions.size(); ++i) {
+    		RangeVariable range = this.RelatedSingleTable((Expression)queryConditions.get(i));
+    		if(range == null)
+    			continue;
+    		counts[rangeSet.getIndex(range)]++;
+    	}
+    	//如果第二个相关的单表表达式更多则交换两个rangeVariable的顺序
+    	if(counts[0] < counts[1]) {
+    		RangeVariable r = rangeVariables[0];
+    		rangeVariables[0] = rangeVariables[1];
+    		rangeVariables[1] = r;
+    	}
+    }
+    private boolean isIndexEqualExpression(Expression e) {
+    	if(!(e.isColumnEqual && 
+    			e.getLeftNode().getRangeVariable() != 
+    			e.getRightNode().getRangeVariable())) 
+    		return false;
+    	OrderedIntHashSet set = new OrderedIntHashSet();
+    	Expression[] nodes = new Expression[2];
+    	nodes[0] = e.getLeftNode(); nodes[1] = e.getRightNode();
+    	for(int i = 0; i < 2; ++i) {
+    		if(nodes[i] == null)
+    			return false;
+    		set.clear();
+    		set.add(nodes[i].getColumnIndex());
+    		if(nodes[i].getRangeVariable()
+    				.rangeTable
+    				.getIndexForColumns(session, set, OpTypes.EQUAL, false)
+    				.length == 0)
+    			return false;
+    	}
+    	return true;
     }
 }

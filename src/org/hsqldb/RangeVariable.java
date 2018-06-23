@@ -49,6 +49,7 @@ import org.hsqldb.navigator.RangeIterator;
 import org.hsqldb.navigator.RowIterator;
 import org.hsqldb.persist.PersistentStore;
 import org.hsqldb.types.Type;
+import org.hsqldb.index.IndexAVL.IndexRowIterator;;
 
 /**
  * Metadata for range variables, including conditions.
@@ -1333,7 +1334,11 @@ public class RangeVariable {
             int opType = conditions[condIndex].opType;
             //modified by Liangjz，used to accelerate certain select
             int useLastItFlag = 0;
-            
+            Object[] lastItIndexes = null;
+            if(this.itLastInited && this.itLast instanceof IndexRowIterator) {
+            	//我们没有改动RowIterator这个底层的接口
+            	lastItIndexes = ((IndexRowIterator)this.itLast).getLastRowIdxItem();
+            }
             for (int i = 0; i < conditions[condIndex].indexedColumnCount;
                     i++) {
                 int range    = 0;
@@ -1419,8 +1424,9 @@ public class RangeVariable {
                 }
 
                 currentJoinData[i] = value;
-                if(value != null)
+                if(value != null && lastItIndexes != null && value == lastItIndexes[i]) {
                 	++useLastItFlag;
+                }
             }
             if(useLastItFlag == conditions[condIndex].indexedColumnCount && itLastInited){
             	it = itLast;

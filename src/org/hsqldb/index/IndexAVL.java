@@ -1939,6 +1939,15 @@ public class IndexAVL implements Index {
 
             return lastrow != null;
         }
+        
+        public Object[] getLastRowIdxItem() {
+        	int indexes[] = this.index.getColumns();
+        	Object[] result = new Object[indexes.length];
+        	for(int i = 0; i < result.length; ++i) {
+        		result[i] = this.lastrow.getData()[i];
+        	}
+        	return result;
+        }
 
         public Row getCurrentRow() {
             return lastrow;
